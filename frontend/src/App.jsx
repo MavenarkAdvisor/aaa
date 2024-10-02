@@ -263,9 +263,9 @@ const App = () => {
 
   const handleSubmit = async () => {
     try {
-      // await handleResultAndStockmaster();
-      // await handleSubPosition();
-      // await handlePosition();
+      await handleResultAndStockmaster();
+      await handleSubPosition();
+      await handlePosition();
       await handleLedger();
       setlastSystemDate(systemDate);
       alert("Data Calculated");

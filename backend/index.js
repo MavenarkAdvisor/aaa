@@ -618,6 +618,8 @@ app.post("/api/subsecinfo", async (req, res) => {
       stockmaster[index].SecuritySubCode = SecuritySubCode;
     }
 
+    console.log("Stockmaster YTM calculated");
+
     //-----------------------------------------------------------------
 
     // return res.json({
@@ -783,6 +785,8 @@ app.post("/api/subsecinfo", async (req, res) => {
       };
     });
 
+    console.log("Redumption calculated");
+
     // return res.json({
     //   status: true,
     //   stockmaster: redemption,
@@ -860,6 +864,8 @@ app.post("/api/subsecinfo", async (req, res) => {
         { upsert: true }
       );
     }
+
+    console.log("Result/Subsecinfo data calculated");
 
     // await subsecinfoModel.insertMany(updateduniqueresult);
 
@@ -1012,6 +1018,8 @@ app.post("/api/subsecinfo", async (req, res) => {
       },
       { upsert: true, new: true }
     );
+
+    console.log("stockmasterv2 data calculated");
 
     //Calculating CGtmt Data  -----------------------------------
 
@@ -1376,6 +1384,8 @@ app.post("/api/subsecinfo", async (req, res) => {
       }
     }
 
+    console.log("stockmasterv3 data calculated");
+
     const duplicatesstockV3result = await Promise.all(
       stockmasterV3.map(async (data, i) => {
         const res = await stockmasterV3Model.findOne(data);
@@ -1583,7 +1593,7 @@ app.post("/api/subposition", async (req, res) => {
           const matchedItem1 = PriceMaster.find(
             (item) =>
               item.SystemDate.toISOString().split("T")[0] ===
-              valueDate.toISOString().split("T")[0] &&
+                valueDate.toISOString().split("T")[0] &&
               item.SubSecCode === SecuritySubCode
           );
           // console.log("matchedItem1", matchedItem1);
@@ -1604,12 +1614,14 @@ app.post("/api/subposition", async (req, res) => {
 
           let CumulativeAmortisation_PreviousDay;
 
-          CumulativeAmortisation_PreviousDay = (HoldingValue_PreviousDay === "NA")
-            ? 0.00
-            : (parseFloat(HoldingValue_PreviousDay).toFixed(2) - parseFloat(HoldingCost).toFixed(2));
+          CumulativeAmortisation_PreviousDay =
+            HoldingValue_PreviousDay === "NA"
+              ? 0.0
+              : parseFloat(HoldingValue_PreviousDay).toFixed(2) -
+                parseFloat(HoldingCost).toFixed(2);
 
           //--------------AmortisationForDay-----------------------
-          
+
           const AmortisationForDay =
             CumulativeAmortisation_Today.toFixed(2) -
             CumulativeAmortisation_PreviousDay.toFixed(2);
@@ -2092,19 +2104,18 @@ app.post("/api/position", async (req, res) => {
 
         const CleanPrice = HoldingValueOnToday / Qty;
 
-        let HoldingValueOnPreviousDay = "NA";
+        let HoldingValueOnPreviousDay = 0;
 
-        const matchedItemValues = SubPosition.find(
-          item => 
-            item.Date.toISOString().split("T")[0] === Date.toISOString().split("T")[0] &&
-            item.ClientCode === ClientCode && 
+        const DataValue = SubPosition.reduce((total, item) => {
+          return item.Date.toISOString().split("T")[0] ===
+            Date.toISOString().split("T")[0] &&
+            item.ClientCode === ClientCode &&
             item.SecurityCode === SecurityCode
-        );
+            ? item.HoldingValue_PreviousDay + total
+            : total;
+        }, 0);
 
-        if (matchedItemValues) {
-          const DataValue = matchedItemValues.HoldingValue_PreviousDay + matchedItemValues.total;
-          HoldingValueOnPreviousDay = DataValue;
-        }
+        HoldingValueOnPreviousDay = DataValue;
 
         const CumulativeAmortisationTillToday = SubPosition.reduce(
           (total, curr) => {
