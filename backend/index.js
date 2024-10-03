@@ -2374,21 +2374,6 @@ app.post("/api/ledger", async (req, res) => {
 
       const Narration = entrytypeobj?.DefaultNarration;
 
-      const CleanConsideration =
-        (FaceValue ?? 0) +
-        (Amortisation ?? 0) +
-        (InterestAccrued ?? 0) +
-        (STT ?? 0) +
-        (Brokerage ?? 0) +
-        (TransactionCharges ?? 0) +
-        (TurnoverFees ?? 0) +
-        (ClearingCharges ?? 0) +
-        (GST ?? 0) +
-        (StampDuty ?? 0);
-
-      const CrDr =
-        CleanConsideration > 0 ? "D" : CleanConsideration < 0 ? "C" : "";
-
       ledgercodes.forEach((ledger) => {
         const { LedgerCode, LedgerName } = ledger;
 
@@ -2396,106 +2381,45 @@ app.post("/api/ledger", async (req, res) => {
 
         if (EventType === "FI_PUR") {
           switch (LedgerCode) {
-            case "A1001":
-              amount = FaceValue;
-              break;
-            case "A1003":
-              amount = Amortisation;
-              break;
-            case "A1005":
-              amount = InterestAccrued;
-              break;
-            case "E1015":
-              amount = utils.getValueOrEmpty(STT);
-              break;
-            case "E1010":
-              amount = utils.getValueOrEmpty(Brokerage);
-              break;
-            case "E1011":
-              amount = utils.getValueOrEmpty(TransactionCharges);
-              break;
-            case "E1012":
-              amount = utils.getValueOrEmpty(TurnoverFees);
-              break;
-            case "E1013":
-              amount = utils.getValueOrEmpty(ClearingCharges);
-              break;
-            case "E1014":
-              amount = utils.getValueOrEmpty(GST);
-              break;
-            case "E1009":
-              amount = utils.getValueOrEmpty(StampDuty);
-              break;
+            case "A1001": amount = FaceValue; break;
+            case "A1003": amount = Amortisation; break;
+            case "A1005": amount = InterestAccrued; break;
+            case "E1015": amount = STT; break;
+            case "E1010": amount = Brokerage; break;
+            case "E1011": amount = TransactionCharges; break;
+            case "E1012": amount = TurnoverFees; break;
+            case "E1013": amount = ClearingCharges; break;
+            case "E1014": amount = GST; break;
+            case "E1009": amount = StampDuty; break;
             case "A1000":
-              const total =
-                (FaceValue ?? 0) +
-                (Amortisation ?? 0) +
-                (InterestAccrued ?? 0) +
-                (STT ?? 0) +
-                (Brokerage ?? 0) +
-                (TransactionCharges ?? 0) +
-                (TurnoverFees ?? 0) +
-                (ClearingCharges ?? 0) +
-                (GST ?? 0) +
-                (StampDuty ?? 0);
-              amount = utils.getValueOrEmpty(total);
+              const total = -(FaceValue + Amortisation + InterestAccrued + STT + Brokerage + TransactionCharges + TurnoverFees + ClearingCharges + GST + StampDuty);
+              amount = total;
               break;
-            default:
-              amount = null;
+            default: amount = null;
           }
         } else if (EventType === "FI_SAL") {
           switch (LedgerCode) {
-            case "A1001":
-              amount = -FaceValue;
-              break;
-            case "A1003":
-              amount = -Amortisation;
-              break;
-            case "A1005":
-              amount = -InterestAccrued;
-              break;
-            case "E1015":
-              amount = utils.getValueOrEmpty(-STT);
-              break;
-            case "E1010":
-              amount = utils.getValueOrEmpty(-Brokerage);
-              break;
-            case "E1011":
-              amount = utils.getValueOrEmpty(-TransactionCharges);
-              break;
-            case "E1012":
-              amount = utils.getValueOrEmpty(-TurnoverFees);
-              break;
-            case "E1013":
-              amount = utils.getValueOrEmpty(-ClearingCharges);
-              break;
-            case "E1014":
-              amount = utils.getValueOrEmpty(-GST);
-              break;
-            case "E1009":
-              amount = utils.getValueOrEmpty(-StampDuty);
-              break;
+            case "A1001": amount = -FaceValue; break;
+            case "A1003": amount = -Amortisation; break;
+            case "A1005": amount = -InterestAccrued; break;
+            case "E1015": amount = -STT; break;
+            case "E1010": amount = -Brokerage; break;
+            case "E1011": amount = -TransactionCharges; break;
+            case "E1012": amount = -TurnoverFees; break;
+            case "E1013": amount = -ClearingCharges; break;
+            case "E1014": amount = -GST; break;
+            case "E1009": amount = -StampDuty; break;
             case "A1000":
-              const total = -(
-                (FaceValue ?? 0) +
-                (Amortisation ?? 0) +
-                (InterestAccrued ?? 0) +
-                (STT ?? 0) +
-                (Brokerage ?? 0) +
-                (TransactionCharges ?? 0) +
-                (TurnoverFees ?? 0) +
-                (ClearingCharges ?? 0) +
-                (GST ?? 0) +
-                (StampDuty ?? 0)
-              );
-              amount = utils.getValueOrEmpty(total);
+              const total = (FaceValue + Amortisation + InterestAccrued + STT + Brokerage + TransactionCharges + TurnoverFees + ClearingCharges + GST + StampDuty);
+              amount = total;
               break;
-            default:
-              amount = null;
+            default: amount = null;
           }
         }
+        const CrDr =
+        amount > 0 ? "D" : amount < 0 ? "C" : "";
 
-        if (amount) {
+        if (amount !== null && amount !== undefined) {
           Ledger.push({
             EventType,
             LedgerCode,
