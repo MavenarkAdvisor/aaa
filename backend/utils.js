@@ -28,7 +28,7 @@ exports.JSToExcelDate = (newdate) => {
   return Math.floor(date.getTime() / 86400 / 1000) + 25569;
 };
 
-exports.getValueOrEmpty = (value) => (value === 0 ? "" : value);
+exports.getValueOrEmpty = (value) => (!value ? "" : value);
 
 exports.calculateDFForValuation = async (item, index, data, system_date) => {
   if (item.PrevCfDate == "") {
