@@ -160,7 +160,7 @@ exports.calculateresult = async (
             ? system_date === lipdateforsettlement
               ? intaccperday_d
               : intaccperday_b - intaccperday_c
-              : "NA";
+            : "NA";
 
         //------------------------------------------------------
 

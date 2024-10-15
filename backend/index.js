@@ -2048,7 +2048,7 @@ app.post("/api/position", async (req, res) => {
       })
     );
 
-    console.log(position);
+    // console.log(position);
 
     const duplicatesposition = await Promise.all(
       position.map(async (data, i) => {
@@ -2092,22 +2092,34 @@ app.post("/api/position", async (req, res) => {
 
 app.post("/api/ledger", async (req, res) => {
   try {
-    // Fetch data from StockMasterV2, LedgerCode, and EntryType collections
-    const [StockMasterV2raw, LedgerCoderaw, EntryTyperaw] = await Promise.all([
-      stockmasterV2latestModel.find(
-        {},
-        { _id: 0, createdAt: 0, updatedAt: 0, __v: 0 }
-      ),
-      ledgercodeModel.find({}, { _id: 0, createdAt: 0, updatedAt: 0, __v: 0 }),
-      entrytypeModel.find({}, { _id: 0, createdAt: 0, updatedAt: 0, __v: 0 }),
-    ]);
-
-    // Convert documents to objects
+    // Fetch the required data
+    const StockMasterV2raw = await stockmasterV2latestModel.find(
+      {},
+      { _id: 0, createdAt: 0, updatedAt: 0, __v: 0 }
+    );
     const StockMasterV2 = StockMasterV2raw.map((doc) =>
       doc.toObject({ getters: true, virtuals: false })
     );
+
+    const StockMasterV3raw = await stockmasterV3latestModel.find(
+      {},
+      { _id: 0, createdAt: 0, updatedAt: 0, __v: 0 }
+    );
+    const StockMasterV3 = StockMasterV3raw.map((doc) =>
+      doc.toObject({ getters: true, virtuals: false })
+    );
+
+    const LedgerCoderaw = await ledgercodeModel.find(
+      {},
+      { _id: 0, createdAt: 0, updatedAt: 0, __v: 0 }
+    );
     const LedgerCode = LedgerCoderaw.map((doc) =>
       doc.toObject({ getters: true, virtuals: false })
+    );
+
+    const EntryTyperaw = await entrytypeModel.find(
+      {},
+      { _id: 0, createdAt: 0, updatedAt: 0, __v: 0 }
     );
     const EntryType = EntryTyperaw.map((doc) =>
       doc.toObject({ getters: true, virtuals: false })
@@ -2115,7 +2127,8 @@ app.post("/api/ledger", async (req, res) => {
 
     let Ledger = [];
 
-    StockMasterV2.forEach((item) => {
+    // Processing StockMasterV2
+    StockMasterV2.forEach((itemV2) => {
       const {
         EventType,
         SettlementDate,
@@ -2131,41 +2144,49 @@ app.post("/api/ledger", async (req, res) => {
         ClearingCharges,
         GST,
         StampDuty,
-        CapitalGainLoss, // Ensure CapitalGainLoss is available
-      } = item;
+      } = itemV2;
+
+      // Calculate CapitalGainLoss from StockMasterV3
+      const CapitalGainLoss =
+        StockMasterV3.find(
+          (itemV3) =>
+            itemV2.SecurityCode === itemV3.SecurityCode &&
+            itemV2.ClientCode === itemV3.ClientCode
+        )?.CapitalGainLoss || 0;
+
+      // Calculate AmortisationData
+      const AmortisationData = StockMasterV3.filter(
+        (itemV3) =>
+          itemV2.SecurityCode === itemV3.SecurityCode &&
+          itemV2.ClientCode === itemV3.ClientCode
+      ).reduce((acc, itemV3) => acc + (itemV3.PurchaseValue || 0), 0);
 
       const Date = SettlementDate;
 
-      // Filter ledger codes by ClientCode
-      const ledgercodes = LedgerCode.filter(
-        (ledger) => ledger.ClientCode === ClientCode
-      );
+      // Get the correct EntryType
+      const entryTypeObj = EntryType.find((et) => et.EntryType === EventType);
+      const Narration = entryTypeObj?.DefaultNarration;
 
-      // Find the corresponding entry type
-      const entrytypeobj = EntryType.find(
-        (entry) => entry.EntryType === EventType
-      );
-      const Narration = entrytypeobj?.DefaultNarration;
+      // Iterate over LedgerCode
+      LedgerCode.forEach((itemLedger) => {
+        const { LedgerCode, LedgerName } = itemLedger;
+        let amount;
 
-      ledgercodes.forEach((ledger) => {
-        const { LedgerCode, LedgerName } = ledger;
-        let amount = null;
-
-        // Calculate amount based on EventType and LedgerCode
+        // Calculate amount based on the EventType and LedgerCode
         if (EventType === "FI_PUR") {
           switch (LedgerCode) {
             case "A1000":
               amount = -(
-                FaceValue +
-                Amortisation +
-                InterestAccrued +
-                StampDuty +
-                Brokerage +
-                TransactionCharges +
-                TurnoverFees +
-                ClearingCharges +
-                GST +
-                STT
+                (FaceValue ?? 0) +
+                (Amortisation ?? 0) +
+                (InterestAccrued ?? 0) +
+                (StampDuty ?? 0) +
+                (Brokerage ?? 0) +
+                (TransactionCharges ?? 0) +
+                (TurnoverFees ?? 0) +
+                (ClearingCharges ?? 0) +
+                (GST ?? 0) +
+                (STT ?? 0)
               );
               break;
             case "A1001":
@@ -2177,7 +2198,7 @@ app.post("/api/ledger", async (req, res) => {
             case "A1005":
               amount = InterestAccrued;
               break;
-            case "E1009":
+            case "A1009":
               amount = StampDuty;
               break;
             case "E1010":
@@ -2205,23 +2226,23 @@ app.post("/api/ledger", async (req, res) => {
           switch (LedgerCode) {
             case "A1000":
               amount =
-                FaceValue +
-                Amortisation +
-                InterestAccrued +
-                StampDuty +
-                Brokerage +
-                TransactionCharges +
-                TurnoverFees +
-                ClearingCharges +
-                GST +
-                STT;
+                (FaceValue ?? 0) +
+                (Amortisation ?? 0) +
+                (InterestAccrued ?? 0) +
+                (StampDuty ?? 0) +
+                (Brokerage ?? 0) +
+                (TransactionCharges ?? 0) +
+                (TurnoverFees ?? 0) +
+                (ClearingCharges ?? 0) +
+                (GST ?? 0) +
+                (STT ?? 0);
               break;
             case "A1001":
               amount = -FaceValue;
               break;
             case "A1003":
-              amount = -Amortisation;
-              break; // Ensure amount is set for A1003
+              amount = -AmortisationData;
+              break;
             case "A1005":
               amount = -InterestAccrued;
               break;
@@ -2247,8 +2268,8 @@ app.post("/api/ledger", async (req, res) => {
               amount = -STT;
               break;
             case "I1007":
-              amount = CapitalGainLoss;
-              break; // Add CapitalGainLoss case
+              amount = -CapitalGainLoss;
+              break;
             default:
               amount = null;
           }
@@ -2256,8 +2277,9 @@ app.post("/api/ledger", async (req, res) => {
 
         const CrDr = amount > 0 ? "D" : amount < 0 ? "C" : "";
 
-        // Add entry to Ledger if amount is valid
-        if (amount !== " " && amount !== undefined) {
+        amount = utils.getValueOrEmpty(amount);
+
+        if (amount !== null && amount !== undefined) {
           Ledger.push({
             EventType,
             LedgerCode,
@@ -2272,24 +2294,29 @@ app.post("/api/ledger", async (req, res) => {
         }
       });
     });
-
     // console.log(Ledger);
 
-    // Duplicates and filter unique entries
-    const uniqueledgerresult = await Promise.all(
-      Ledger.map(async (data) => {
+    const duplicatesledger = await Promise.all(
+      Ledger.map(async (data, i) => {
         const res = await ledgerModel.findOne({ Date: data.Date });
-        return res ? null : data;
+        if (res) return true;
+        else {
+          return false;
+        }
+      })
+    );
+
+    const uniqueledgerresult = await Promise.all(
+      Ledger.map(async (data, i) => {
+        if (!duplicatesledger[i]) {
+          return data;
+        }
       })
     );
 
     const updateduniqueledger = uniqueledgerresult.filter((obj) => obj);
+
     await ledgerModel.insertMany(updateduniqueledger);
-
-    // -- Storing StockmasterV2 latest Eod results --------------------------------
-
-    // await positionlatestModel.deleteMany({});
-    // await positionlatestModel.insertMany(position);
 
     res
       .status(200)
@@ -2479,7 +2506,7 @@ app.post("/api/secInfo", upload.single("file"), async (req, res) => {
     })
   );
 
-  console.log("calculatedData: ", calculatedData);
+  // console.log("calculatedData: ", calculatedData);
 });
 
 // app.post('/capitalGain', upload.single('file'),async(req,res)=>{
