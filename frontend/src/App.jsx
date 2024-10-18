@@ -171,6 +171,18 @@ const App = () => {
     }
   };
 
+  const handleTrialBalance = async () => {
+    try {
+      const { data } = await axios.post("/api/trialbalance");
+
+      if (data.status) {
+        console.log(data.message);
+      }
+    } catch (err) {
+      return err;
+    }
+  };
+
   const handleMarketPrice = async () => {
     if (!marketprice) {
       return alert("Please Upload MarketPrice file");
@@ -267,6 +279,7 @@ const App = () => {
       await handleSubPosition();
       await handlePosition();
       await handleLedger();
+      await handleTrialBalance();
       setlastSystemDate(systemDate);
       alert("Data Calculated");
     } catch (error) {

@@ -31,6 +31,7 @@ const marketpricelatestModel = require("./model/marketpricelatestModel");
 const entrytypeModel = require("./model/entrytypeModel");
 const ledgercodeModel = require("./model/ledgercodeModel");
 const ledgerModel = require("./model/ledgerModel");
+const trialbalanceModel = require("./model/trialbalanceModal");
 
 // Enable CORS for all requests
 app.use(cors());
@@ -2334,6 +2335,84 @@ app.post("/api/ledger", async (req, res) => {
     res
       .status(200)
       .json({ status: true, message: "Ledger Calculated successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: false, message: error.message });
+  }
+});
+
+app.post("/api/trialbalance", async (req, res) => {
+  try {
+    const ledgerraw = await ledgerModel.find(
+      {},
+      { _id: 0, createdAt: 0, updatedAt: 0, __v: 0 }
+    );
+
+    const ledger = ledgerraw.map((doc) =>
+      doc.toObject({ getters: true, virtuals: false })
+    );
+
+    // Ledger data
+    const trialbalance = ledger.map((itemV2) => {
+      const { LedgerCode, ClientCode, Date: date, LedgerName } = itemV2;
+
+      const amt1 = ledger
+        .filter(
+          (item) =>
+            item.ClientCode === ClientCode &&
+            item.LedgerCode === LedgerCode &&
+            item.Date === date
+        )
+        .reduce((sum, item) => sum + item.Amount, 0);
+
+      const amt2 = ledger
+        .filter(
+          (item) =>
+            item.ClientCode === ClientCode &&
+            item.LedgerCode === LedgerCode &&
+            new Date(item.Date) <= new Date(date)
+        )
+        .reduce((sum, item) => sum + item.Amount, 0);
+
+      const Amount =
+        LedgerCode.startsWith("E") || LedgerCode.startsWith("I") ? amt1 : amt2;
+
+      return {
+        LedgerCode,
+        ClientCode,
+        Date: date,
+        LedgerName,
+        Amount,
+      };
+    });
+
+    const duplicatesdata = await Promise.all(
+      trialbalance.map(async (data, i) => {
+        const res = await trialbalanceModel.findOne({ Date: data.Date });
+        if (res) return true;
+        else {
+          return false;
+        }
+      })
+    );
+
+    const uniqueresult = await Promise.all(
+      trialbalance.map(async (data, i) => {
+        if (!duplicatesdata[i]) {
+          return data;
+        }
+      })
+    );
+
+    const updateduniqueresult = uniqueresult.filter((obj) => obj);
+
+    await trialbalanceModel.insertMany(updateduniqueresult);
+
+    console.log("TrialBalance Calculated");
+
+    res
+      .status(200)
+      .json({ status: true, message: "Trial Balance Calculated successfully" });
   } catch (error) {
     console.error(error);
     res.status(500).json({ status: false, message: error.message });
