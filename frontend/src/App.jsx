@@ -15,6 +15,7 @@ const fileNames = [
   "subposition",
   "position",
   "ledger",
+  "trialbalance",
 ];
 
 const App = () => {
